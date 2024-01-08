@@ -596,6 +596,11 @@ class GraphQLQueryFilterSet(BaseFilterSet):
 
 
 class ImageAttachmentFilterSet(BaseFilterSet):
+    q = SearchFilter(
+        filter_predicates={
+            "name": "icontains",
+        },
+    )
     content_type = ContentTypeFilter()
 
     class Meta:

@@ -100,6 +100,11 @@ class TokenFilterSet(BaseFilterSet):
 
 
 class ObjectPermissionFilterSet(BaseFilterSet):
+    q = SearchFilter(
+        filter_predicates={
+            "name": "icontains",
+        }
+    )
     users = NaturalKeyOrPKMultipleChoiceFilter(
         queryset=get_user_model().objects.all(),
         to_field_name="username",

@@ -1,3 +1,4 @@
+from unittest import skip
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 
@@ -940,6 +941,10 @@ class IPAddressToInterfaceTestCase(FilterTestCases.FilterTestCase):
                     self.queryset.filter(**{test_filter: False}),
                     ordered=False,
                 )
+
+    @skip("Skipping IPAddressToInterface is a through model.")
+    def test_q_filter_exists(self):
+        """Test is not applicable for model."""
 
 
 class VLANGroupTestCase(FilterTestCases.NameOnlyFilterTestCase):

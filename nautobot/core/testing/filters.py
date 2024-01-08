@@ -3,7 +3,7 @@ import random
 from django.db.models import Count
 from django.test import tag
 
-from nautobot.core.filters import RelatedMembershipBooleanFilter
+from nautobot.core.filters import RelatedMembershipBooleanFilter, SearchFilter
 from nautobot.core.models.generics import PrimaryModel
 from nautobot.core.testing import views
 from nautobot.tenancy import models
@@ -154,6 +154,12 @@ class FilterTestCases:
             # Tags is an AND filter not an OR filter
             qs_result = self.queryset.filter(tags=tags[0]).filter(tags=tags[1]).distinct()
             self.assertQuerysetEqualAndNotEmpty(filterset_result, qs_result)
+
+        def test_q_filter_exists(self):
+            """Test the `q` filter exists on a filterset, does not validate the filter works as expected."""
+            params = {"q": "some filter"}
+            filterset_result = self.filterset(params, self.queryset)
+            self.assertTrue(filterset_result.is_valid())
 
     class NameOnlyFilterTestCase(FilterTestCase):
         """Add simple tests for filtering by name."""

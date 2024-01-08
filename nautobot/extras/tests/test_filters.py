@@ -1,3 +1,4 @@
+from unittest import skip
 import uuid
 
 from django.contrib.auth import get_user_model
@@ -1308,6 +1309,10 @@ class RelationshipAssociationTestCase(FilterTestCases.FilterTestCase):
         params = {"peer_id": [self.devices[2].pk]}
         self.assertEqual(self.filterset(params, self.queryset).qs.count(), 1)
 
+    @skip("Skipping RelationshipAssociation is a through model.")
+    def test_q_filter_exists(self):
+        """Test is not applicable for model."""
+
 
 class RelationshipModelFilterSetTestCase(FilterTestCases.FilterTestCase):
     queryset = RelationshipAssociation.objects.all()
@@ -1524,6 +1529,10 @@ class RelationshipModelFilterSetTestCase(FilterTestCases.FilterTestCase):
             2,
         )
 
+    @skip("Skipping RelationshipModel is an abstract model.")
+    def test_q_filter_exists(self):
+        """Test is not applicable for model."""
+
 
 class SecretTestCase(FilterTestCases.NameOnlyFilterTestCase):
     queryset = Secret.objects.all()
@@ -1650,6 +1659,10 @@ class SecretsGroupAssociationTestCase(FilterTestCases.FilterTestCase):
     def test_secret_type(self):
         params = {"secret_type": [SecretsGroupSecretTypeChoices.TYPE_PASSWORD]}
         self.assertEqual(self.filterset(params, self.queryset).qs.count(), 2)
+
+    @skip("Skipping RelationshipAssociation is a through model.")
+    def test_q_filter_exists(self):
+        """Test is not applicable for model."""
 
 
 class StatusTestCase(FilterTestCases.NameOnlyFilterTestCase):
