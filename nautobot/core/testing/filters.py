@@ -176,7 +176,7 @@ class FilterTestCases:
 
         def test_q_filter_valid(self):
             """Test the `q` filter based on attributes in `filter_predicates`."""
-            if not isinstance(self.filterset, SearchFilter):
+            if not isinstance(self.filterset.declared_filters.get("q"), SearchFilter):
                 self.skipTest("`q` filter is not a SearchFilter")
             if not self.filterset.declared_filters.get("q"):
                 self.skipTest("`q` filter not implemented")
