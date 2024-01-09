@@ -1532,10 +1532,6 @@ class RelationshipModelFilterSetTestCase(FilterTestCases.FilterTestCase):
             2,
         )
 
-    @skip("Skipping RelationshipModel is an abstract model.")
-    def test_q_filter_exists(self):
-        """Test is not applicable for model."""
-
 
 class SecretTestCase(FilterTestCases.NameOnlyFilterTestCase):
     queryset = Secret.objects.all()
@@ -1663,7 +1659,7 @@ class SecretsGroupAssociationTestCase(FilterTestCases.FilterTestCase):
         params = {"secret_type": [SecretsGroupSecretTypeChoices.TYPE_PASSWORD]}
         self.assertEqual(self.filterset(params, self.queryset).qs.count(), 2)
 
-    @skip("Skipping RelationshipAssociation is a through model.")
+    @skip("Skipping SecretsGroupAssociation is a through model.")
     def test_q_filter_exists(self):
         """Test is not applicable for model."""
 
