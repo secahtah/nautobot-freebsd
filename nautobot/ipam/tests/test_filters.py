@@ -60,6 +60,10 @@ class VRFTestCase(FilterTestCases.FilterTestCase, FilterTestCases.TenancyFilterT
     queryset = VRF.objects.all()
     filterset = VRFFilterSet
     tenancy_related_name = "vrfs"
+    q_filter = {
+        "name": "icontains",
+        "description": "icontains",
+    }
 
     @classmethod
     def setUpTestData(cls):
@@ -104,6 +108,9 @@ class RouteTargetTestCase(FilterTestCases.FilterTestCase, FilterTestCases.Tenanc
     queryset = RouteTarget.objects.all()
     filterset = RouteTargetFilterSet
     tenancy_related_name = "route_targets"
+    q_filter = {
+        "description": "icontains",
+    }
 
     @classmethod
     def setUpTestData(cls):

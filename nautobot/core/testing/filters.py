@@ -1,4 +1,5 @@
 import random
+import string
 
 from django.db.models import Count
 from django.test import tag
@@ -58,6 +59,14 @@ class FilterTestCases:
         queryset = None
         filterset = None
 
+        # dictionary of attributes and lookup expression implemented in q filter
+        # meant to skip attributes that use icontains but cannot append a random string to attribute
+        # example:
+        #   q_filter = {
+        #       "name": "icontains",
+        #   }
+        q_filter = None
+
         # list of filters to be tested by `test_filters_generic`
         # list of iterables with filter name and optional field name
         # example:
@@ -66,6 +75,12 @@ class FilterTestCases:
         #       ["filter2", "field2__name"],
         #   ]
         generic_filter_tests = []
+
+        def get_q_filter(self):
+            """Helper method to return q filter."""
+            if self.q_filter:
+                return self.q_filter
+            return self.filterset.declared_filters["q"].filter_predicates
 
         def test_id(self):
             """Verify that the filterset supports filtering by id."""
@@ -157,9 +172,39 @@ class FilterTestCases:
 
         def test_q_filter_exists(self):
             """Test the `q` filter exists on a filterset, does not validate the filter works as expected."""
-            params = {"q": "some filter"}
-            filterset_result = self.filterset(params, self.queryset)
-            self.assertTrue(filterset_result.is_valid())
+            self.assertTrue(self.filterset.declared_filters.get("q"))
+
+        def test_q_filter_valid(self):
+            """Test the `q` filter based on attributes in `filter_predicates`."""
+            if not isinstance(self.filterset, SearchFilter):
+                self.skipTest("`q` filter is not a SearchFilter")
+            if not self.filterset.declared_filters.get("q"):
+                self.skipTest("`q` filter not implemented")
+
+            obj = self.queryset.first()
+            for attr, lookup_method in self.get_q_filter().items():
+                if not lookup_method in ["icontains", "iexact"]:
+                    # only testing icontains and iexact filter lookups
+                    continue
+                lookup = str(obj.id)
+                if not attr == "id":
+                    if not hasattr(obj, attr):
+                        # only testing direct attrs, does not support nested lookups
+                        continue
+                    lookup = "".join(random.choices(string.ascii_lowercase, k=5))
+                    updated_attr = getattr(obj, attr) + lookup
+                    setattr(obj, attr, updated_attr)
+                    try:
+                        obj.save()
+                    except:
+                        print(getattr(obj, attr))
+                        print(attr)
+                    if lookup_method == "iexact":
+                        lookup = updated_attr
+                params = {"q": lookup}
+                filterset_result = self.filterset(params, self.queryset)
+                self.assertTrue(filterset_result.is_valid())
+                self.assertEqual(filterset_result.qs.count(), 1)
 
     class NameOnlyFilterTestCase(FilterTestCase):
         """Add simple tests for filtering by name."""

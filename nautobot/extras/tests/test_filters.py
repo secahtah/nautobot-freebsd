@@ -653,6 +653,9 @@ class GraphQLTestCase(FilterTestCases.NameOnlyFilterTestCase):
     queryset = GraphQLQuery.objects.all()
     filterset = GraphQLQueryFilterSet
 
+    # skip testing query attribute for q filter test
+    q_filter = {"name": "icontains"}
+
     @classmethod
     def setUpTestData(cls):
         graphqlqueries = (
