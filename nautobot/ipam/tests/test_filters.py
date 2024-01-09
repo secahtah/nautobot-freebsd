@@ -1,4 +1,5 @@
 from unittest import skip
+
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 

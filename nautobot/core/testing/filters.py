@@ -183,7 +183,7 @@ class FilterTestCases:
 
             obj = self.queryset.first()
             for attr, lookup_method in self.get_q_filter().items():
-                if not lookup_method in ["icontains", "iexact"]:
+                if lookup_method not in ["icontains", "iexact"]:
                     # only testing icontains and iexact filter lookups
                     continue
                 lookup = str(obj.id)
@@ -192,7 +192,7 @@ class FilterTestCases:
                         # only testing direct attrs, does not support nested lookups
                         continue
                     # Create random 5 char string to append to attribute, used for icontains partial lookup
-                    lookup = "".join(random.choices(string.ascii_lowercase, k=5))
+                    lookup = "".join(random.choices(string.ascii_lowercase, k=5))  # noqa: S311 # pseudo-random generator
                     updated_attr = getattr(obj, attr) + lookup
                     setattr(obj, attr, updated_attr)
                     obj.save()

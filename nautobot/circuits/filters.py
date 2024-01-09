@@ -1,4 +1,3 @@
-from django.db.models import Q
 import django_filters
 
 from nautobot.core.filters import (
