@@ -1317,7 +1317,7 @@ class RelationshipAssociationTestCase(FilterTestCases.FilterTestCase):
         """Test is not applicable for model."""
 
 
-class RelationshipModelFilterSetTestCase(FilterTestCases.FilterTestCase):
+class RelationshipAssociationFilterSetTestCase(FilterTestCases.FilterTestCase):
     queryset = RelationshipAssociation.objects.all()
     filterset = RelationshipAssociationFilterSet
 
@@ -1531,6 +1531,10 @@ class RelationshipModelFilterSetTestCase(FilterTestCases.FilterTestCase):
             ).qs.count(),
             2,
         )
+
+    @skip("Skipping RelationshipAssociation is a through model.")
+    def test_q_filter_exists(self):
+        """Test is not applicable for model."""
 
 
 class SecretTestCase(FilterTestCases.NameOnlyFilterTestCase):

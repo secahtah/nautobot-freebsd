@@ -172,8 +172,6 @@ class FilterTestCases:
 
         def test_q_filter_exists(self):
             """Test the `q` filter exists on a filterset, does not validate the filter works as expected."""
-            if self.queryset.model._meta.abstract:
-                self.skipTest("`q` filter is not applicable for abstract models")
             self.assertTrue(self.filterset.declared_filters.get("q"))
 
         def test_q_filter_valid(self):
