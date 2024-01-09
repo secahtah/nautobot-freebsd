@@ -191,14 +191,12 @@ class FilterTestCases:
                     if not hasattr(obj, attr):
                         # only testing direct attrs, does not support nested lookups
                         continue
+                    # Create random 5 char string to append to attribute, used for icontains partial lookup
                     lookup = "".join(random.choices(string.ascii_lowercase, k=5))
                     updated_attr = getattr(obj, attr) + lookup
                     setattr(obj, attr, updated_attr)
-                    try:
-                        obj.save()
-                    except:
-                        print(getattr(obj, attr))
-                        print(attr)
+                    obj.save()
+                    # if lookup_method is iexact use the full updated attr
                     if lookup_method == "iexact":
                         lookup = updated_attr
                 params = {"q": lookup}
