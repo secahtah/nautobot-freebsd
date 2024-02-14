@@ -19,42 +19,21 @@ def migrate_dlm_software_models_to_core(apps, schema_editor):
     CoreSoftwareImage = apps.get_model("dcim", "SoftwareImageFile")
     Device = apps.get_model("dcim", "Device")
     InventoryItem = apps.get_model("dcim", "InventoryItem")
-    CustomField = apps.get_model("extras", "CustomField")
     ObjectChange = apps.get_model("extras", "ObjectChange")
-    ObjectPermission = apps.get_model("users", "ObjectPermission")
     RelationshipAssociation = apps.get_model("extras", "RelationshipAssociation")
     Status = apps.get_model("extras", "Status")
-    Tag = apps.get_model("extras", "Tag")
+    TaggedItem = apps.get_model("extras", "TaggedItem")
 
     dlm_software_version_ct = ContentType.objects.get_for_model(DLMSoftwareVersion)
     dlm_software_image_ct = ContentType.objects.get_for_model(DLMSoftwareImage)
     core_software_version_ct = ContentType.objects.get_for_model(CoreSoftwareVersion)
     core_software_image_ct = ContentType.objects.get_for_model(CoreSoftwareImage)
 
-    # TODO: Migrate ComputedFields
-    # TODO: Migrate CustomLinks
-    # TODO: Migrate ExportTemplates
-    # TODO: Migrate JobButtons
-    # TODO: Migrate JobHooks
-    # TODO: Migrate WebHooks
+    device_ct = ContentType.objects.get_for_model(Device)
+    inventory_item_ct = ContentType.objects.get_for_model(InventoryItem)
 
-    # Migrate CustomField content types
-    for cf in CustomField.objects.filter(content_types=dlm_software_version_ct):
-        cf.content_types.add(core_software_version_ct)
-    for cf in CustomField.objects.filter(content_types=dlm_software_image_ct):
-        cf.content_types.add(core_software_image_ct)
-
-    # Migrate Status content types
-    for status in Status.objects.filter(content_types=dlm_software_version_ct):
-        status.content_types.add(core_software_version_ct)
-    for status in Status.objects.filter(content_types=dlm_software_image_ct):
-        status.content_types.add(core_software_image_ct)
-
-    # Migrate Tag content types
-    for tag in Tag.objects.filter(content_types=dlm_software_version_ct):
-        tag.content_types.add(core_software_version_ct)
-    for tag in Tag.objects.filter(content_types=dlm_software_image_ct):
-        tag.content_types.add(core_software_image_ct)
+    _migrate_content_types(apps, dlm_software_version_ct, core_software_version_ct)
+    _migrate_content_types(apps, dlm_software_image_ct, core_software_image_ct)
 
     status_active = Status.objects.get(name="Active")
 
@@ -79,25 +58,12 @@ def migrate_dlm_software_models_to_core(apps, schema_editor):
         CoreSoftwareVersion.objects.filter(id=core_software_version.id).update(created=dlm_software_version.created)
         core_software_version.refresh_from_db()
 
-        # Migrate tags
-        _migrate_tags(
-            apps,
-            old_instance=dlm_software_version,
-            old_ct=dlm_software_version_ct,
-            new_ct=core_software_version_ct,
-        )
-
-        # Migrate notes
-        _migrate_notes(
-            apps,
-            old_instance=dlm_software_version,
-            old_ct=dlm_software_version_ct,
-            new_ct=core_software_version_ct,
-        )
-
         # Migrate "Software on Device" relationships to the Device.software_version foreign key
         for relationship_association in RelationshipAssociation.objects.filter(
-            relationship__key="device_soft", source_id=dlm_software_version.id
+            relationship__key="device_soft",
+            source_type=core_software_version_ct,
+            source_id=core_software_version.id,
+            destination_type=device_ct,
         ):
             device = Device.objects.get(id=relationship_association.destination_id)
             device.software_version = core_software_version
@@ -105,7 +71,10 @@ def migrate_dlm_software_models_to_core(apps, schema_editor):
 
         # Migrate "Software on InventoryItem" relationships to the InventoryItem.software_version foreign key
         for relationship_association in RelationshipAssociation.objects.filter(
-            relationship__key="inventory_item_soft", source_id=dlm_software_version.id
+            relationship__key="inventory_item_soft",
+            source_id=core_software_version.id,
+            source_type=core_software_version_ct,
+            destination_type=inventory_item_ct,
         ):
             inventory_item = InventoryItem.objects.get(id=relationship_association.destination_id)
             inventory_item.software_version = core_software_version
@@ -136,8 +105,6 @@ def migrate_dlm_software_models_to_core(apps, schema_editor):
         )
 
     for dlm_software_image in DLMSoftwareImage.objects.all():
-        # TODO: Migrate default_image to the M2M fields
-
         core_software_image = CoreSoftwareImage(
             id=dlm_software_image.id,
             software_version=CoreSoftwareVersion.objects.get(id=dlm_software_image.software.id),
@@ -153,25 +120,18 @@ def migrate_dlm_software_models_to_core(apps, schema_editor):
 
         # Work around created field's auto_now_add behavior
         CoreSoftwareImage.objects.filter(id=core_software_image.id).update(created=dlm_software_image.created)
-        # TODO: Map the DLM object_tags to devices and set the SoftwareImageFile.devices m2m field
+
+        # Map the DLM object_tags to devices and set the Device.software_image_files m2m field
+        device_pks = TaggedItem.objects.filter(
+            tag__in=dlm_software_image.object_tags.all(), content_type=device_ct
+        ).values_list("object_id")
+        for device in Device.objects.filter(pk__in=device_pks):
+            device.software_image_files.add(core_software_image)
+
+        # TODO: Map the DLM object_tags to inventory items and set the InventoryItem.software_image_files m2m field
+        # TODO: Map the DLM object_tags to virtual machines and set the VirtualMachine.software_image_files m2m field
 
         core_software_image.refresh_from_db()
-
-        # Migrate tags
-        _migrate_tags(
-            apps,
-            old_instance=dlm_software_image,
-            old_ct=dlm_software_image_ct,
-            new_ct=core_software_image_ct,
-        )
-
-        # Migrate notes
-        _migrate_notes(
-            apps,
-            old_instance=dlm_software_image,
-            old_ct=dlm_software_image_ct,
-            new_ct=core_software_image_ct,
-        )
 
         # make tag manager available in migration for nautobot.core.models.utils.serialize_object
         # https://github.com/jazzband/django-taggit/issues/101
@@ -197,42 +157,83 @@ def migrate_dlm_software_models_to_core(apps, schema_editor):
             request_id=uuid.uuid4(),
         )
 
-    # Migrate ObjectChanges
-    ObjectChange.objects.filter(changed_object_type=dlm_software_version_ct).update(
-        changed_object_type=core_software_version_ct
-    )
-    ObjectChange.objects.filter(changed_object_type=dlm_software_image_ct).update(
-        changed_object_type=core_software_image_ct
-    )
 
-    # Migrate ObjectPermissions
-    for object_permission in ObjectPermission.objects.filter(object_types=dlm_software_version_ct):
-        object_permission.object_types.add(core_software_version_ct)
-    for object_permission in ObjectPermission.objects.filter(object_types=dlm_software_image_ct):
-        object_permission.object_types.add(core_software_image_ct)
-
-    # TODO: Migrate any relationships that weren't migrated above
-
-
-def _migrate_notes(apps, old_instance, old_ct, new_ct):
+def _migrate_content_types(apps, old_ct, new_ct):
+    ComputedField = apps.get_model("extras", "ComputedField")
+    CustomField = apps.get_model("extras", "CustomField")
+    CustomLink = apps.get_model("extras", "CustomLink")
+    ExportTemplate = apps.get_model("extras", "ExportTemplate")
+    JobButton = apps.get_model("extras", "JobButton")
+    JobHook = apps.get_model("extras", "JobHook")
     Note = apps.get_model("extras", "Note")
-    for note in Note.objects.filter(assigned_object_type=old_ct, assigned_object_id=old_instance.id):
-        note.assigned_object_type = new_ct
-        note.save()
-
-
-def _migrate_tags(apps, old_instance, old_ct, new_ct):
+    ObjectChange = apps.get_model("extras", "ObjectChange")
+    ObjectPermission = apps.get_model("users", "ObjectPermission")
+    Relationship = apps.get_model("extras", "Relationship")
+    RelationshipAssociation = apps.get_model("extras", "RelationshipAssociation")
+    Status = apps.get_model("extras", "Status")
+    Tag = apps.get_model("extras", "Tag")
     TaggedItem = apps.get_model("extras", "TaggedItem")
-    for old_tagged_item in TaggedItem.objects.filter(content_type=old_ct, object_id=old_instance.id):
-        # DLM forms are using a custom tag field that doesn't enforce content type. Fix that here if necessary.
-        if not old_tagged_item.tag.content_types.filter(id=new_ct.id).exists():
-            old_tagged_item.tag.content_types.add(new_ct)
+    WebHook = apps.get_model("extras", "WebHook")
 
-        TaggedItem.objects.create(
-            content_type=new_ct,
-            object_id=old_instance.id,
-            tag=old_tagged_item.tag,
-        )
+    # Migrate ComputedField content type
+    ComputedField.objects.filter(content_type=old_ct).update(content_type=new_ct)
+
+    # Migrate CustomField content type
+    for cf in CustomField.objects.filter(content_types=old_ct):
+        cf.content_types.add(new_ct)
+
+    # Migrate CustomLink content type
+    CustomLink.objects.filter(content_type=old_ct).update(content_type=new_ct)
+
+    # Migrate ExportTemplate content type - skip git export templates
+    ExportTemplate.objects.filter(content_type=old_ct, owner_content_type=None).update(content_type=new_ct)
+
+    # Migrate JobButton content type
+    for job_button in JobButton.objects.filter(content_types=old_ct):
+        job_button.content_types.add(new_ct)
+
+    # Migrate JobHook content type
+    for job_hook in JobHook.objects.filter(content_types=old_ct):
+        job_hook.content_types.add(new_ct)
+
+    # Migrate Note content type
+    Note.objects.filter(assigned_object_type=old_ct).update(assigned_object_type=new_ct)
+
+    # Migrate ObjectChange content type
+    ObjectChange.objects.filter(changed_object_type=old_ct).update(changed_object_type=new_ct)
+
+    # Migrate ObjectPermission content type
+    for object_permission in ObjectPermission.objects.filter(object_types=old_ct):
+        object_permission.object_types.add(new_ct)
+
+    # Migrate Relationship content type
+    Relationship.objects.filter(source_type=old_ct).update(source_type=new_ct)
+    Relationship.objects.filter(destination_type=old_ct).update(destination_type=new_ct)
+
+    # Migration RelationshipAssociation content type
+    RelationshipAssociation.objects.filter(source_type=old_ct).update(source_type=new_ct)
+    RelationshipAssociation.objects.filter(destination_type=old_ct).update(destination_type=new_ct)
+
+    # Migrate Status content type
+    for status in Status.objects.filter(content_types=old_ct):
+        status.content_types.add(new_ct)
+
+    # Migrate Tag content type
+    for tag in Tag.objects.filter(content_types=old_ct):
+        tag.content_types.add(new_ct)
+
+    # Migrate TaggedItem content type
+    TaggedItem.objects.filter(content_type=old_ct).update(content_type=new_ct)
+
+    # DLM forms are using a custom tag field that doesn't enforce content type. Fix that here if necessary.
+    for tag_id in TaggedItem.objects.filter(content_type=new_ct).values_list("tag_id", flat=True).distinct():
+        tag = Tag.objects.get(id=tag_id)
+        if not tag.content_types.filter(id=new_ct.id).exists():
+            tag.content_types.add(new_ct)
+
+    # Migrate WebHook content type
+    for web_hook in WebHook.objects.filter(content_types=old_ct):
+        web_hook.content_types.add(new_ct)
 
 
 def _migrate_hashing_algorithm(value):
@@ -253,6 +254,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("dcim", "0056_softwareimage_m2m_and_device_fk"),
         ("contenttypes", "0002_remove_content_type_name"),
+        ("nautobot_device_lifecycle_mgmt", "0020_alter_created_tags"),
     ]
 
     operations = [
